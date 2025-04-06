@@ -8,18 +8,18 @@ services:
     stdin_open: true ## docker run -i
     tty: true ## docker run -t
     volumes:
-      - '${ROOT}/MediaCenter/config/DMB/config:/config' ## Location of configuration files. If a Zurg config.yml and/or Zurg app is placed here, it will be used to override the default configuration and/or app used at startup.
-      - '${ROOT}/MediaCenter/config/DMB/log:/log' ## Location for logs
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/RD:/zurg/RD' ## Location for Zurg RealDebrid active configuration
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data:shared' ## Location for rclone mount to host
-      - '${ROOT}/MediaCenter/config/DMB/PostgreSQL/data:/postgres_data' ## Location for PostgreSQL database
-      - '${ROOT}/MediaCenter/config/DMB/pgAdmin4/data:/pgadmin/data' ## Location for pgAdmin 4 data
-      - '${ROOT}/MediaCenter/config/DMB/Zilean/data:/zilean/app/data' ## Location for Zilean data
+      - ${ROOT}/MediaCenter/config/DMB/config:/config ## Location of configuration files. If a Zurg config.yml and/or Zurg app is placed here, it will be used to override the default configuration and/or app used at startup.
+      - ${ROOT}/MediaCenter/config/DMB/log:/log ## Location for logs
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/RD:/zurg/RD ## Location for Zurg RealDebrid active configuration
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data:shared ## Location for rclone mount to host
+      - ${ROOT}/MediaCenter/config/DMB/PostgreSQL/data:/postgres_data ## Location for PostgreSQL database
+      - ${ROOT}/MediaCenter/config/DMB/pgAdmin4/data:/pgadmin/data ## Location for pgAdmin 4 data
+      - ${ROOT}/MediaCenter/config/DMB/Zilean/data:/zilean/app/data ## Location for Zilean data
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
-      - 'ZURG_INSTANCES_REALDEBRID_API_KEY=${RD_API_KEY}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - ZURG_INSTANCES_REALDEBRID_API_KEY=${RD_API_KEY}
       - DMB_LOG_LEVEL=INFO
     ports:
       - "3005:3005" ## DMB Frontend
@@ -40,14 +40,14 @@ services:
       - "8111:8181" # Proxy
     user: "1000:1000"
     volumes:
-      - '${HDDSTORAGE}:/MediaCenterBox'
-      - '${ROOT}/MediaCenter/config/decypharr:/app' # config.json must be in this directory
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data'
-      - '${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL'
+      - ${HDDSTORAGE}:/MediaCenterBox
+      - ${ROOT}/MediaCenter/config/decypharr:/app # config.json must be in this directory
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       - UMASK=002
       - QBIT_PORT=8282 # qBittorrent Port. This is optional. You can set this in the config file
       - PORT=8181 # Proxy Port. This is optional. You can set this in the config file
@@ -69,16 +69,16 @@ services:
       - homepage.widget.url=http://${HOSTNAME}:8112
       - homepage.widget.password=deluge
       - homepage.widget.enableLeechProgress=true
-    image: 'linuxserver/deluge:latest'
+    image: linuxserver/deluge:latest
     restart: unless-stopped
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
-      - '${ROOT}/MediaCenter/config/deluge:/config'
-      - '${HDDSTORAGE}:/MediaCenterBox'
-    network_mode: 'host'
+      - ${ROOT}/MediaCenter/config/deluge:/config
+      - ${HDDSTORAGE}:/MediaCenterBox
+    network_mode: host
 
   ### INDEXERS ###
   prowlarr:
@@ -94,14 +94,14 @@ services:
       - homepage.widget.key=${PROWLARR_API_KEY}
     container_name: prowlarr
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
-      - '${ROOT}/MediaCenter/config/prowlarr:/config'
+      - ${ROOT}/MediaCenter/config/prowlarr:/config
     restart: unless-stopped
     ports:
-      - '9696:9696'
+      - 9696:9696
 
   sonarr:
     container_name: sonarr
@@ -114,20 +114,24 @@ services:
       - homepage.widget.type=sonarr
       - homepage.widget.url=http://${HOSTNAME}:8989
       - homepage.widget.key=${SONARR_API_KEY}
-    image: 'linuxserver/sonarr:latest'
+    image: linuxserver/sonarr:latest
     restart: unless-stopped
     ports:
-      - '8989:8989'
+      - 8989:8989
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
-      - '/etc/localtime:/etc/localtime:ro'
-      - '${ROOT}/MediaCenter/config/sonarr:/config'
-      - '${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL'
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data'
-      - '${HDDSTORAGE}:/MediaCenterBox'
+      - /etc/localtime:/etc/localtime:ro
+      - ${ROOT}/MediaCenter/config/sonarr:/config
+      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${HDDSTORAGE}:/MediaCenterBox
+    depends_on:
+      decypharr:
+        condition: service_healthy
+        restart: true
 
   sonarr-4k:
     container_name: sonarr-4k
@@ -140,20 +144,24 @@ services:
       - homepage.widget.type=sonarr
       - homepage.widget.url=http://${HOSTNAME}:8888
       - homepage.widget.key=${SONARR_4K_API_KEY}
-    image: 'linuxserver/sonarr:latest'
+    image: linuxserver/sonarr:latest
     restart: unless-stopped
     ports:
-      - '8888:8989'
+      - 8888:8989
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
-      - '/etc/localtime:/etc/localtime:ro'
-      - '${ROOT}/MediaCenter/config/sonarr-4k:/config'
-      - '${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL'
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data'
-      - '${HDDSTORAGE}:/MediaCenterBox'
+      - /etc/localtime:/etc/localtime:ro
+      - ${ROOT}/MediaCenter/config/sonarr-4k:/config
+      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${HDDSTORAGE}:/MediaCenterBox
+    depends_on:
+      decypharr:
+        condition: service_healthy
+        restart: true
 
   radarr:
     container_name: radarr
@@ -166,20 +174,24 @@ services:
       - homepage.widget.type=radarr
       - homepage.widget.url=http://${HOSTNAME}:7878
       - homepage.widget.key=${RADARR_API_KEY}
-    image: 'linuxserver/radarr:latest'
+    image: linuxserver/radarr:latest
     restart: unless-stopped
     ports:
-      - '7878:7878'
+      - 7878:7878
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
-      - '/etc/localtime:/etc/localtime:ro'
-      - '${ROOT}/MediaCenter/config/radarr:/config'
-      - '${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL'
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data'
-      - '${HDDSTORAGE}:/MediaCenterBox'
+      - /etc/localtime:/etc/localtime:ro
+      - ${ROOT}/MediaCenter/config/radarr:/config
+      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${HDDSTORAGE}:/MediaCenterBox
+    depends_on:
+      decypharr:
+        condition: service_healthy
+        restart: true
 
   radarr-4k:
     container_name: radarr-4k
@@ -192,20 +204,24 @@ services:
       - homepage.widget.type=radarr
       - homepage.widget.url=http://${HOSTNAME}:7979
       - homepage.widget.key=${RADARR_4K_API_KEY}
-    image: 'linuxserver/radarr:latest'
+    image: linuxserver/radarr:latest
     restart: unless-stopped
     ports:
-      - '7979:7878'
+      - 7979:7878
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
-      - '/etc/localtime:/etc/localtime:ro'
-      - '${ROOT}/MediaCenter/config/radarr-4k:/config'
-      - '${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL'
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data'
-      - '${HDDSTORAGE}:/MediaCenterBox'
+      - /etc/localtime:/etc/localtime:ro
+      - ${ROOT}/MediaCenter/config/radarr-4k:/config
+      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${HDDSTORAGE}:/MediaCenterBox
+    depends_on:
+      decypharr:
+        condition: service_healthy
+        restart: true
 
   ### MEDIA SERVER ###
   jellyfin:
@@ -222,18 +238,18 @@ services:
     image: lscr.io/linuxserver/jellyfin
     restart: unless-stopped
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       - DOCKER_MODS=linuxserver/mods:jellyfin-opencl-intel|ghcr.io/themepark-dev/theme.park:jellyfin
       - TP_COMMUNITY_THEME=true
       - TP_THEME=rose-pine-moon
     network_mode: host
     volumes:
-      - '${ROOT}/MediaCenter/config/jellyfin:/config'
-      - '${ROOT}/MediaCenter/config/jellyfin/transcode:/transcode'
-      - '${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data'
-      - '${HDDSTORAGE}/Completed:/MediaCenterBox'
+      - ${ROOT}/MediaCenter/config/jellyfin:/config
+      - ${ROOT}/MediaCenter/config/jellyfin/transcode:/transcode
+      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${HDDSTORAGE}/Completed:/MediaCenterBox
       - ~/IPTVBoss/output:/IPTVBoss
     devices:
       - /dev/dri:/dev/dri
@@ -248,7 +264,7 @@ services:
     image: containrrr/watchtower:amd64-latest
     restart: unless-stopped
     environment:
-      - 'TZ=${TZ}'
+      - TZ=${TZ}
       - WATCHTOWER_SCHEDULE= 0 0 6 * * * #      - WATCHTOWER_LABEL_ENABLE=true
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_REMOVE_VOLUMES=true
@@ -262,7 +278,7 @@ services:
     ports:
       - 1903:3000
     volumes:
-      - '${ROOT}/MediaCenter/config/homepage:/app/config' # Make sure your local config directory exists
+      - ${ROOT}/MediaCenter/config/homepage:/app/config # Make sure your local config directory exists
       - /var/run/docker.sock:/var/run/docker.sock # (optional) For docker integrations
     environment:
       HOMEPAGE_ALLOWED_HOSTS: ${HOSTNAME}
@@ -281,14 +297,14 @@ services:
       - homepage.widget.url=http://${HOSTNAME}:5055
       - homepage.widget.key=${JELLYSEERR_API_KEY}
     environment:
-      - 'PUID=${PUID}'
-      - 'PGID=${PGID}'
-      - 'TZ=${TZ}'
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       - LOG_LEVEL=debug
     ports:
       - 5055:5055
     volumes:
-      - '${ROOT}/MediaCenter/config/jellyseerr:/app/config'
+      - ${ROOT}/MediaCenter/config/jellyseerr:/app/config
     restart: unless-stopped
 
   thelounge:
