@@ -31,14 +31,13 @@ services:
     security_opt:
       - apparmor:unconfined
       - no-new-privileges
-
   decypharr:
     image: cy01/blackhole:latest # or cy01/blackhole:beta
     container_name: decypharr
     ports:
-      - "8000:8282" # qBittorrent
-      - "8111:8181" # Proxy
-    user: "1000:1000"
+      - 8000:8282 # qBittorrent
+      - 8111:8181 # Proxy
+    user: ${PUID}:${PGID}
     volumes:
       - ${HDDSTORAGE}:/MediaCenterBox
       - ${ROOT}/MediaCenter/config/decypharr:/app # config.json must be in this directory
@@ -49,14 +48,13 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - UMASK=002
-      - QBIT_PORT=8282 # qBittorrent Port. This is optional. You can set this in the config file
-      - PORT=8181 # Proxy Port. This is optional. You can set this in the config file
+      - QBIT_PORT=8282
+      - PORT=8181
     restart: unless-stopped
     depends_on:
       DMB:
         condition: service_healthy
         restart: true
-
   deluge:
     container_name: deluge
     labels:
@@ -79,6 +77,44 @@ services:
       - ${ROOT}/MediaCenter/config/deluge:/config
       - ${HDDSTORAGE}:/MediaCenterBox
     network_mode: host
+  suwayomi:
+    image: ghcr.io/suwayomi/suwayomi-server:preview
+    container_name: suwayomi
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - FLARESOLVERR_ENABLED=true
+      - FLARESOLVERR_URL=http://flaresolverr:8191
+      - DOWNLOAD_AS_CBZ=true
+      - EXTENSION_REPOS=["https://github.com/keiyoushi/extensions"]
+    volumes:
+      - ${ROOT}/MediaCenter/config/suwayomi:/home/suwayomi/.local/share/Tachidesk:shared
+    ports:
+      - 4567:4567
+    restart: on-failure:3
+  flaresolverr:
+    image: ghcr.io/thephaseless/byparr:latest
+    container_name: flaresolverr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+  ## This service transforms the downloaded CBZ from suwayomi into something more palatable for Jellyfin
+  flattener:
+    build:
+      context: ./suwayomi-flattener
+    container_name: flattener
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${ROOT}/MediaCenter/config/suwayomi/downloads/mangas:/mnt/FOLDER:ro
+      - ${HDDSTORAGE}/Completed/Suwayomi-Comics:/media
 
   ### INDEXERS ###
   prowlarr:
@@ -102,7 +138,6 @@ services:
     restart: unless-stopped
     ports:
       - 9696:9696
-
   sonarr:
     container_name: sonarr
     labels:
@@ -132,7 +167,6 @@ services:
       decypharr:
         condition: service_healthy
         restart: true
-
   sonarr-4k:
     container_name: sonarr-4k
     labels:
@@ -162,7 +196,6 @@ services:
       decypharr:
         condition: service_healthy
         restart: true
-
   radarr:
     container_name: radarr
     labels:
@@ -192,7 +225,6 @@ services:
       decypharr:
         condition: service_healthy
         restart: true
-
   radarr-4k:
     container_name: radarr-4k
     labels:
@@ -265,7 +297,7 @@ services:
     restart: unless-stopped
     environment:
       - TZ=${TZ}
-      - WATCHTOWER_SCHEDULE= 0 0 6 * * * #      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_SCHEDULE= 0 0 6 * * *
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_REMOVE_VOLUMES=true
       - WATCHTOWER_NOTIFICATIONS_LEVEL=debug
@@ -279,7 +311,7 @@ services:
       - 1903:3000
     volumes:
       - ${ROOT}/MediaCenter/config/homepage:/app/config # Make sure your local config directory exists
-      - /var/run/docker.sock:/var/run/docker.sock # (optional) For docker integrations
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       HOMEPAGE_ALLOWED_HOSTS: ${HOSTNAME}
 
