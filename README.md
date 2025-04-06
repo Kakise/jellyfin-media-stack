@@ -94,9 +94,7 @@ MediaCenter/
 │   ├── sonarr/
 │   ├── radarr/
 │   └── ...
-├── downloads/
-├── media/
-└── other/
+└───────────
 ```
 
 ---
