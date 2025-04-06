@@ -1,7 +1,7 @@
 # 🍿 Jellyfin Media Stack
 
 [![Docker Compose](https://img.shields.io/badge/Docker--Compose-Ready-blue?logo=docker)](https://docs.docker.com/compose/)
-[![MIT License](https://img.shields.io/github/license/Kakise/jellyfin-media-stack.svg)](LICENSE)
+[![MIT License](https://img.shields.io/github/license/Kakise/jellyfin-media-stack)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Kakise/jellyfin-media-stack.svg?style=social)](https://github.com/Kakise/jellyfin-media-stack/stargazers)
 [![Last Commit](https://img.shields.io/github/last-commit/Kakise/jellyfin-media-stack)](https://github.com/Kakise/jellyfin-media-stack)
 
