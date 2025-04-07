@@ -1,4 +1,39 @@
 services:
+  ### REVERSE PROXY ###
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.leresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.leresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json"
+      - "--accesslog=true"
+      - "--accesslog.filepath=/traefik.log"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Optional: Traefik dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "${ROOT}/MediaCenter/config/traefik/acme:/letsencrypt"
+      - ./traefik.log:/traefik.log
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${HOSTNAME}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$2y$10$1HNS0N7GZQWqqZBfQhwR7OFhrKkoDCK84wklCQd3Yk.i2/iroa53y" # Use `htpasswd`
+      - "traefik.http.routers.traefik.middlewares=auth"
+
   ### DOWNLOADERS ###
   DMB:
     container_name: DMB
@@ -61,10 +96,10 @@ services:
       - homepage.group=Downloaders
       - homepage.name=Deluge
       - homepage.icon=deluge.png
-      - homepage.href=http://${HOSTNAME}:8112
+      - homepage.href=http://${HOSTNAME_LOCAL}:8112
       - homepage.description=Deluge Torrents (Private Trackers)
       - homepage.widget.type=deluge
-      - homepage.widget.url=http://${HOSTNAME}:8112
+      - homepage.widget.url=http://${HOSTNAME_LOCAL}:8112
       - homepage.widget.password=deluge
       - homepage.widget.enableLeechProgress=true
     image: linuxserver/deluge:latest
@@ -132,10 +167,10 @@ services:
       - homepage.group=Indexers
       - homepage.name=Prowlarr
       - homepage.icon=prowlarr.png
-      - homepage.href=http://${HOSTNAME}:9696
+      - homepage.href=http://${HOSTNAME_LOCAL}:9696
       - homepage.description=Prowlarr Indexers
       - homepage.widget.type=prowlarr
-      - homepage.widget.url=http://${HOSTNAME}:9696
+      - homepage.widget.url=http://prowlarr:9696
       - homepage.widget.key=${PROWLARR_API_KEY}
     container_name: prowlarr
     environment:
@@ -153,10 +188,10 @@ services:
       - homepage.group=Indexers
       - homepage.name=Sonarr
       - homepage.icon=sonarr.png
-      - homepage.href=http://${HOSTNAME}:8989
+      - homepage.href=http://${HOSTNAME_LOCAL}:8989
       - homepage.description=Non-4K Series
       - homepage.widget.type=sonarr
-      - homepage.widget.url=http://${HOSTNAME}:8989
+      - homepage.widget.url=http://sonarr:8989
       - homepage.widget.key=${SONARR_API_KEY}
     image: linuxserver/sonarr:latest
     restart: unless-stopped
@@ -182,10 +217,10 @@ services:
       - homepage.group=Indexers
       - homepage.name=Sonarr 4K
       - homepage.icon=sonarr.png
-      - homepage.href=http://${HOSTNAME}:8888
+      - homepage.href=http://${HOSTNAME_LOCAL}:8888
       - homepage.description=4K Series
       - homepage.widget.type=sonarr
-      - homepage.widget.url=http://${HOSTNAME}:8888
+      - homepage.widget.url=http://sonarr-4k:8989
       - homepage.widget.key=${SONARR_4K_API_KEY}
     image: linuxserver/sonarr:latest
     restart: unless-stopped
@@ -211,10 +246,10 @@ services:
       - homepage.group=Indexers
       - homepage.name=Radarr
       - homepage.icon=radarr.png
-      - homepage.href=http://${HOSTNAME}:7878
+      - homepage.href=http://${HOSTNAME_LOCAL}:7878
       - homepage.description=Non-4K Movies
       - homepage.widget.type=radarr
-      - homepage.widget.url=http://${HOSTNAME}:7878
+      - homepage.widget.url=http://radarr:7878
       - homepage.widget.key=${RADARR_API_KEY}
     image: linuxserver/radarr:latest
     restart: unless-stopped
@@ -240,10 +275,10 @@ services:
       - homepage.group=Indexers
       - homepage.name=Radarr 4K
       - homepage.icon=radarr.png
-      - homepage.href=http://${HOSTNAME}:7979
+      - homepage.href=http://${HOSTNAME_LOCAL}:7979
       - homepage.description=4K Movies
       - homepage.widget.type=radarr
-      - homepage.widget.url=http://${HOSTNAME}:7979
+      - homepage.widget.url=http://radarr-4k:7878
       - homepage.widget.key=${RADARR_4K_API_KEY}
     image: linuxserver/radarr:latest
     restart: unless-stopped
@@ -271,11 +306,17 @@ services:
       - homepage.group=Media
       - homepage.name=Jellyfin
       - homepage.icon=jellyfin.png
-      - homepage.href=http://${HOSTNAME}:8096
+      - homepage.href=https://media.${HOSTNAME}
       - homepage.description=Media server
       - homepage.widget.type=jellyfin
-      - homepage.widget.url=http://${HOSTNAME}:8096
+      - homepage.widget.url=http://jellyfin:8096
       - homepage.widget.key=${JELLYFIN_API_KEY}
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`media.${HOSTNAME}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls=true"
+      - "traefik.http.routers.jellyfin.tls.certresolver=leresolver"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
     image: lscr.io/linuxserver/jellyfin
     restart: unless-stopped
     environment:
@@ -285,7 +326,6 @@ services:
       - DOCKER_MODS=linuxserver/mods:jellyfin-opencl-intel|ghcr.io/themepark-dev/theme.park:jellyfin
       - TP_COMMUNITY_THEME=true
       - TP_THEME=rose-pine-moon
-    network_mode: host
     volumes:
       - ${ROOT}/MediaCenter/config/jellyfin:/config
       - ${ROOT}/MediaCenter/config/jellyfin/transcode:/transcode
@@ -294,6 +334,8 @@ services:
       - ~/IPTVBoss/output:/IPTVBoss
     devices:
       - /dev/dri:/dev/dri
+    # ports:
+    #   - 8096:8096
     depends_on:
       DMB:
         condition: service_healthy
@@ -315,6 +357,14 @@ services:
 
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homepage.rule=Host(`home.${HOSTNAME}`)"
+      - "traefik.http.routers.homepage.entrypoints=websecure"
+      - "traefik.http.routers.homepage.tls=true"
+      - "traefik.http.routers.homepage.tls.certresolver=leresolver"
+      - "traefik.http.services.homepage.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$2y$10$1HNS0N7GZQWqqZBfQhwR7OFhrKkoDCK84wklCQd3Yk.i2/iroa53y" # Use `htpasswd`
     container_name: homepage
     ports:
       - 1903:3000
@@ -322,7 +372,7 @@ services:
       - ${ROOT}/MediaCenter/config/homepage:/app/config # Make sure your local config directory exists
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: ${HOSTNAME}
+      HOMEPAGE_ALLOWED_HOSTS: home.${HOSTNAME}
 
   ### OTHER ###
   jellyseerr:
@@ -332,11 +382,17 @@ services:
       - homepage.group=Requests
       - homepage.name=Jellyseerr
       - homepage.icon=jellyseerr.png
-      - homepage.href=http://${HOSTNAME}:5055
+      - homepage.href=https://osr.${HOSTNAME}
       - homepage.description=User media requests
       - homepage.widget.type=jellyseerr
-      - homepage.widget.url=http://${HOSTNAME}:5055
+      - homepage.widget.url=http://jellyseerr:5055
       - homepage.widget.key=${JELLYSEERR_API_KEY}
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyseerr.rule=Host(`osr.${HOSTNAME}`)"
+      - "traefik.http.routers.jellyseerr.entrypoints=websecure"
+      - "traefik.http.routers.jellyseerr.tls=true"
+      - "traefik.http.routers.jellyseerr.tls.certresolver=leresolver"
+      - "traefik.http.services.jellyseerr.loadbalancer.server.port=5055"
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -351,6 +407,13 @@ services:
   thelounge:
     image: ghcr.io/thelounge/thelounge:latest
     container_name: thelounge
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.thelounge.rule=Host(`irc.${HOSTNAME}`)"
+      - "traefik.http.routers.thelounge.entrypoints=websecure"
+      - "traefik.http.routers.thelounge.tls=true"
+      - "traefik.http.routers.thelounge.tls.certresolver=leresolver"
+      - "traefik.http.services.thelounge.loadbalancer.server.port=8096"
     ports:
       - "9000:9000"
     restart: always
