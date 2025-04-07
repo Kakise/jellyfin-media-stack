@@ -77,6 +77,8 @@ services:
       - ${ROOT}/MediaCenter/config/deluge:/config
       - ${HDDSTORAGE}:/MediaCenterBox
     network_mode: host
+
+  ### Mangas Download & Processing ###
   suwayomi:
     image: ghcr.io/suwayomi/suwayomi-server:preview
     container_name: suwayomi
@@ -113,8 +115,14 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${ROOT}/MediaCenter/config/suwayomi/downloads/mangas:/mnt/FOLDER:ro
-      - ${HDDSTORAGE}/Completed/Suwayomi-Comics:/media
+      - ${ROOT}/MediaCenter/config/suwayomi/downloads/mangas:/input:ro
+      - ${HDDSTORAGE}/Completed/Suwayomi-Comics:/output
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ### INDEXERS ###
   prowlarr:

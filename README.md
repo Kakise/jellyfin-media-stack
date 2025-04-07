@@ -14,7 +14,7 @@ Inspired by and expanded from the awesome work on [Rick45/quick-arr-Stack](https
 
 | Category     | Tool           | Description                          |
 |--------------|----------------|--------------------------------------|
-| 📥 Downloaders | **DMB**, **Decypharr**, **Deluge** | Smart torrent + RealDebrid automation |
+| 📥 Downloaders | **DMB**, **Decypharr**, **Deluge**, **Suwayomi** | Smart torrent + Mangas + RealDebrid automation |
 | 📚 Indexers   | **Prowlarr**, **Sonarr**, **Radarr** | Manage TV/movies, HD and 4K |
 | 🎬 Media Server | **Jellyfin**        | Local/remote streaming media server |
 | 📬 Requests   | **Jellyseerr**     | Easy media request interface |

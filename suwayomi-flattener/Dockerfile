@@ -1,18 +1,34 @@
-FROM alpine
+# Use a Python 3.9 base image
+FROM python:3.9-slim
 
-# Install required packages
-RUN apk add --no-cache inotify-tools bash shadow tzdata su-exec
+# Set working directory inside the container
+WORKDIR /app
 
-# Create default user and group (will override UID/GID via entrypoint)
-RUN addgroup -g 911 flattener && adduser -D -u 911 -G flattener flattener
+# Install dependencies and su-exec for user switching
+RUN apt-get update && apt-get install -y \
+    sudo \
+    gosu \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /
+# Install Python dependencies
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy scripts
-COPY sync.sh /sync.sh
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /sync.sh /entrypoint.sh
+# Create the flattener user and group
+RUN groupadd -g 1000 flattener && useradd -r -u 1000 -g flattener flattener
 
-# Use entrypoint to switch user at runtime
-ENTRYPOINT ["/entrypoint.sh"]
+# Copy the application files (flattener.py and entrypoint.sh)
+COPY . /app
+
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set the entrypoint to the entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Set environment variables (optional, you can set these from Docker Compose as well)
+ENV INPUT_DIR=/input
+ENV OUTPUT_DIR=/output
+
+# Run the flattener script
+CMD ["python", "flattener.py"]
