@@ -29,6 +29,7 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 # Set environment variables (optional, you can set these from Docker Compose as well)
 ENV INPUT_DIR=/input
 ENV OUTPUT_DIR=/output
+ENV STATE_DIR=/state
 
 # Run the flattener script
 CMD ["python", "flattener.py"]

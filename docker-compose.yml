@@ -115,6 +115,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
+      - ${ROOT}/MediaCenter/config/flattener:/state
       - ${ROOT}/MediaCenter/config/suwayomi/downloads/mangas:/input:ro
       - ${HDDSTORAGE}/Completed/Suwayomi-Comics:/output
     restart: unless-stopped

@@ -17,7 +17,7 @@ if ! id "flattener" &>/dev/null; then
 fi
 
 # Ensure /input and /output are writable by flattener user
-chown -R flattener:flattener /input /output
+chown -R flattener:flattener /input /output /state
 
 # Run the Python flattener script as the specified user
 exec gosu flattener python /app/flattener.py
