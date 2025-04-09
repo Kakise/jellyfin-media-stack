@@ -105,9 +105,8 @@ def flatten_directory(source_dir: Path, target_dir: Path, conn):
 
 # --- Watchdog handler ---
 class WatcherHandler(FileSystemEventHandler):
-    def __init__(self, conn):
+    def __init__(self):
         super().__init__()
-        self.conn = conn
         self.recently_handled = {}
         self.lock = threading.Lock()
         self.debounce_seconds = 2
@@ -126,13 +125,15 @@ class WatcherHandler(FileSystemEventHandler):
         logging.info(f"Detected change: {event.src_path}")
         with FileLock(LOCK_FILE):
             try:
-                flatten_single_cbz(Path(event.src_path), OUTPUT_DIR, self.conn)
+                with sqlite3.connect(PROCESSED_DB_PATH) as conn:
+                    flatten_single_cbz(Path(event.src_path), OUTPUT_DIR, conn)
             except Exception as e:
                 logging.error(f"Error processing {event.src_path}: {e}")
 
+
 # --- Main loop ---
-def start_watching(conn):
-    event_handler = WatcherHandler(conn)
+def start_watching():
+    event_handler = WatcherHandler()
     observer = Observer()
     observer.schedule(event_handler, str(INPUT_DIR), recursive=True)
     observer.start()
@@ -155,7 +156,7 @@ def main():
     with FileLock(LOCK_FILE):
         flatten_directory(INPUT_DIR, OUTPUT_DIR, conn)
 
-    start_watching(conn)
+    start_watching()
 
 if __name__ == "__main__":
     main()

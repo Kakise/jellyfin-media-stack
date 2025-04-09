@@ -1,8 +1,37 @@
 services:
+  ### AUTH ###
+  authelia:
+    image: authelia/authelia:latest
+    container_name: authelia
+    volumes:
+      - ./authelia/config:/config
+      - ./authelia:/var/lib/authelia
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia.rule=Host(`auth.${HOSTNAME}`)"
+      - "traefik.http.routers.authelia.entrypoints=websecure"
+      - "traefik.http.routers.authelia.tls=true"
+      - "traefik.http.routers.authelia.tls.certresolver=leresolver"
+      - "traefik.http.middlewares.authelia.forwardAuth.address=http://authelia:9091/api/authz/forward-auth"
+      - "traefik.http.middlewares.authelia.forwardAuth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authelia.forwardAuth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Email,Remote-Name"
+
   ### REVERSE PROXY ###
   traefik:
     image: traefik:v3.0
     container_name: traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${HOSTNAME}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=authelia@docker"
     restart: unless-stopped
     command:
       - "--api.dashboard=true"
@@ -19,46 +48,38 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # Optional: Traefik dashboard
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "${ROOT}/MediaCenter/config/traefik/acme:/letsencrypt"
-      - ./traefik.log:/traefik.log
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.${HOSTNAME}`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.tls.certresolver=leresolver"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.middlewares.auth.basicauth.users=admin:$2y$10$1HNS0N7GZQWqqZBfQhwR7OFhrKkoDCK84wklCQd3Yk.i2/iroa53y" # Use `htpasswd`
-      - "traefik.http.routers.traefik.middlewares=auth"
-
-  ### DOWNLOADERS ###
-  DMB:
-    container_name: DMB
-    image: iampuid0/dmb:latest ## Optionally, specify a specific version of DMB w/ image: iampuid0/dmb:2.0.0
-    stop_grace_period: 30s ## Adjust as need to allow for graceful shutdown of the container
-    shm_size: 128mb ## Increased for PostgreSQL
-    stdin_open: true ## docker run -i
-    tty: true ## docker run -t
-    volumes:
-      - ${ROOT}/MediaCenter/config/DMB/config:/config ## Location of configuration files. If a Zurg config.yml and/or Zurg app is placed here, it will be used to override the default configuration and/or app used at startup.
-      - ${ROOT}/MediaCenter/config/DMB/log:/log ## Location for logs
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/RD:/zurg/RD ## Location for Zurg RealDebrid active configuration
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data:shared ## Location for rclone mount to host
-      - ${ROOT}/MediaCenter/config/DMB/PostgreSQL/data:/postgres_data ## Location for PostgreSQL database
-      - ${ROOT}/MediaCenter/config/DMB/pgAdmin4/data:/pgadmin/data ## Location for pgAdmin 4 data
-      - ${ROOT}/MediaCenter/config/DMB/Zilean/data:/zilean/app/data ## Location for Zilean data
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-      - ZURG_INSTANCES_REALDEBRID_API_KEY=${RD_API_KEY}
-      - DMB_LOG_LEVEL=INFO
-    ports:
-      - "3005:3005" ## DMB Frontend
-      - "5050:5050" ## pgAdmin 4
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "${ROOT}/MediaCenter/config/traefik/acme:/letsencrypt"
+      - ./traefik.log:/traefik.log
+
+  ### DOWNLOADERS ###
+  pd_zurg:
+    container_name: pd_zurg
+    image: iampuid0/pd_zurg:latest
+    stdin_open: true # docker run -i
+    tty: true # docker run -t    
+    environment:
+      - ZURG_ENABLED=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - RD_API_KEY=${RD_API_KEY}
+      - RCLONE_MOUNT_NAME=rclone_RD
+      - PD_ENABLED=true
+      - JF_ADDRESS=http://jellyfin:8096
+      - JF_API_KEY=${JELLYFIN_API_KEY}
+    volumes:
+      - ${ROOT}/MediaCenter/config/pd_zurg/config:/config
+      - ${ROOT}/MediaCenter/config/pd_zurg/log:/log
+      - ${ROOT}/MediaCenter/config/pd_zurg/cache:/cache
+      - ${ROOT}/MediaCenter/config/pd_zurg/RD:/zurg/RD
+      - ${ROOT}/MediaCenter/config/pd_zurg/AD:/zurg/AD
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data:shared
     devices:
       - /dev/fuse:/dev/fuse:rwm
     cap_add:
@@ -74,10 +95,9 @@ services:
       - 8111:8181 # Proxy
     user: ${PUID}:${PGID}
     volumes:
-      - ${HDDSTORAGE}:/MediaCenterBox
       - ${ROOT}/MediaCenter/config/decypharr:/app # config.json must be in this directory
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
-      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data
+      - ${HDDSTORAGE}:/MediaCenterBox
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -87,7 +107,7 @@ services:
       - PORT=8181
     restart: unless-stopped
     depends_on:
-      DMB:
+      pd_zurg:
         condition: service_healthy
         restart: true
   deluge:
@@ -117,6 +137,14 @@ services:
   suwayomi:
     image: ghcr.io/suwayomi/suwayomi-server:preview
     container_name: suwayomi
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.suwayomi.rule=Host(`mangas.${HOSTNAME}`)"
+      - "traefik.http.routers.suwayomi.entrypoints=websecure"
+      - "traefik.http.routers.suwayomi.tls=true"
+      - "traefik.http.routers.suwayomi.tls.certresolver=leresolver"
+      - "traefik.http.services.suwayomi.loadbalancer.server.port=4567"
+      - "traefik.http.routers.suwayomi.middlewares=authelia@docker"
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -127,8 +155,6 @@ services:
       - EXTENSION_REPOS=["https://github.com/keiyoushi/extensions"]
     volumes:
       - ${ROOT}/MediaCenter/config/suwayomi:/home/suwayomi/.local/share/Tachidesk:shared
-    ports:
-      - 4567:4567
     restart: on-failure:3
   flaresolverr:
     image: ghcr.io/thephaseless/byparr:latest
@@ -137,8 +163,6 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    ports:
-      - "8191:8191"
     restart: unless-stopped
   ## This service transforms the downloaded CBZ from suwayomi into something more palatable for Jellyfin
   flattener:
@@ -152,7 +176,7 @@ services:
     volumes:
       - ${ROOT}/MediaCenter/config/flattener:/state
       - ${ROOT}/MediaCenter/config/suwayomi/downloads/mangas:/input:ro
-      - ${HDDSTORAGE}/Completed/Suwayomi-Comics:/output
+      - ${HDDSTORAGE}/Completed/Books/Comics:/output
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -204,8 +228,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${ROOT}/MediaCenter/config/sonarr:/config
-      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data
       - ${HDDSTORAGE}:/MediaCenterBox
     depends_on:
       decypharr:
@@ -233,8 +256,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${ROOT}/MediaCenter/config/sonarr-4k:/config
-      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data
       - ${HDDSTORAGE}:/MediaCenterBox
     depends_on:
       decypharr:
@@ -262,8 +284,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${ROOT}/MediaCenter/config/radarr:/config
-      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data
       - ${HDDSTORAGE}:/MediaCenterBox
     depends_on:
       decypharr:
@@ -291,8 +312,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${ROOT}/MediaCenter/config/radarr-4k:/config
-      - ${ROOT}/MediaCenter/config/decypharr/mnt:/MediaCenterBox/RD-DL
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data
       - ${HDDSTORAGE}:/MediaCenterBox
     depends_on:
       decypharr:
@@ -329,15 +349,13 @@ services:
     volumes:
       - ${ROOT}/MediaCenter/config/jellyfin:/config
       - ${ROOT}/MediaCenter/config/jellyfin/transcode:/transcode
-      - ${ROOT}/MediaCenter/config/DMB/Zurg/mnt:/data
+      - ${ROOT}/MediaCenter/config/pd_zurg/mnt:/data
       - ${HDDSTORAGE}/Completed:/MediaCenterBox
       - ~/IPTVBoss/output:/IPTVBoss
     devices:
       - /dev/dri:/dev/dri
-    # ports:
-    #   - 8096:8096
     depends_on:
-      DMB:
+      pd_zurg:
         condition: service_healthy
         restart: true
 
@@ -364,10 +382,8 @@ services:
       - "traefik.http.routers.homepage.tls=true"
       - "traefik.http.routers.homepage.tls.certresolver=leresolver"
       - "traefik.http.services.homepage.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.auth.basicauth.users=admin:$2y$10$1HNS0N7GZQWqqZBfQhwR7OFhrKkoDCK84wklCQd3Yk.i2/iroa53y" # Use `htpasswd`
+      - "traefik.http.routers.homepage.middlewares=authelia@docker"
     container_name: homepage
-    ports:
-      - 1903:3000
     volumes:
       - ${ROOT}/MediaCenter/config/homepage:/app/config # Make sure your local config directory exists
       - /var/run/docker.sock:/var/run/docker.sock
@@ -398,8 +414,6 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - LOG_LEVEL=debug
-    ports:
-      - 5055:5055
     volumes:
       - ${ROOT}/MediaCenter/config/jellyseerr:/app/config
     restart: unless-stopped
@@ -413,9 +427,7 @@ services:
       - "traefik.http.routers.thelounge.entrypoints=websecure"
       - "traefik.http.routers.thelounge.tls=true"
       - "traefik.http.routers.thelounge.tls.certresolver=leresolver"
-      - "traefik.http.services.thelounge.loadbalancer.server.port=8096"
-    ports:
-      - "9000:9000"
+      - "traefik.http.services.thelounge.loadbalancer.server.port=9000"
     restart: always
     volumes:
       - ~/.thelounge:/var/opt/thelounge
